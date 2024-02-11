@@ -10,7 +10,8 @@ cxxopts::ParseResult getCLIArgs(int argc, char** argv) {
     cxxopts::Options options("Word Count", "C++ implementation of the wc linux command");
     options.allow_unrecognised_options();
     options.add_options()
-            ("L,maxlength", "Write the length of the line containing the most bytes", cxxopts::value<bool>()->default_value("false"))
+            ("L,maxLength", "Write the length of the line containing the most"
+                            " bytes", cxxopts::value<bool>()->default_value("false"))
             ("c,count", "The number of bytes in each input file is written to the standard output.", cxxopts::value<bool>()->default_value("false"))
             ("l,length", "The number of lines in each input file is written to the standard output.", cxxopts::value<bool>()->default_value("false"))
             ("m,characters", "The number of characters in each input file is written to the standard output. If the current locale does not support multibyte characters, this is equivalent to the -c option.", cxxopts::value<bool>()->default_value("false"))
@@ -39,10 +40,12 @@ std::stringstream attachInput(const std::string& filename) {
     return stream;
 }
 
-void processStream(std::istream& ss, const std::string& filename, bool length, bool words, bool count) {
+void processStream(std::istream& ss, const std::string& filename, bool
+length, bool words, bool count, bool maxLength) {
     std::string line, word;
     unsigned long lineCount = 0;
     unsigned long byteCount = 0;
+    unsigned long maxBytes = 0;
     unsigned long wordCount = 0;
 
     auto initialPosition = ss.tellg(); // Get the initial position
@@ -50,11 +53,12 @@ void processStream(std::istream& ss, const std::string& filename, bool length, b
     while (std::getline(ss, line)) {
         lineCount++;
         byteCount += line.size() + 1; // Add 1 for the newline character
+        maxBytes = std::max(maxBytes, line.size());
         std::stringstream s_line(line);
         wordCount += std::distance(std::istream_iterator<std::string>(s_line), std::istream_iterator<std::string>());
     }
 
-    if (!length && !words && !count) {
+    if (!length && !words && !count && !maxLength) {
         // Print the byte count using the initial and final positions
         std::cout << "   " << lineCount << "    " << wordCount << "   " << byteCount;
     } else {
@@ -64,6 +68,8 @@ void processStream(std::istream& ss, const std::string& filename, bool length, b
             std::cout << "   " << wordCount;
         if (count)
             std::cout << "   " << byteCount;
+        if (maxLength)
+            std::cout << "   " << maxBytes;
     }
 
     std::cout << "    " << filename << std::endl;
@@ -76,14 +82,15 @@ int main(int argc, char** argv) {
     bool length = options["length"].as<bool>();
     bool words = options["words"].as<bool>();
     bool count = options["count"].as<bool>();
+    bool maxLength = options["maxLength"].as<bool>();
 
     if (filenames.empty()) {
         // read from stdin
-        processStream(std::cin, "", length, words, count);
+        processStream(std::cin, "", length, words, count, maxLength);
     } else {
         for (const auto& file : filenames) {
             std::stringstream ss = attachInput(file);
-            processStream(ss, file, length, words, count);
+            processStream(ss, file, length, words, count, maxLength);
         }
     }
 
