@@ -6,11 +6,6 @@
 #include <filesystem>
 #include <cxxopts.hpp>
 
-// Function declarations
-cxxopts::ParseResult getCLIArgs(int argc, char** argv);
-std::stringstream attachInput(const std::string& filename);
-void processFile(const std::string& filename, bool length, bool words, bool count);
-
 cxxopts::ParseResult getCLIArgs(int argc, char** argv) {
     cxxopts::Options options("Word Count", "C++ implementation of the wc linux command");
     options.allow_unrecognised_options();
@@ -44,6 +39,36 @@ std::stringstream attachInput(const std::string& filename) {
     return stream;
 }
 
+void processStream(std::istream& ss, const std::string& filename, bool length, bool words, bool count) {
+    std::string line, word;
+    unsigned long lineCount = 0;
+    unsigned long byteCount = 0;
+    unsigned long wordCount = 0;
+
+    auto initialPosition = ss.tellg(); // Get the initial position
+
+    while (std::getline(ss, line)) {
+        lineCount++;
+        byteCount += line.size() + 1; // Add 1 for the newline character
+        std::stringstream s_line(line);
+        wordCount += std::distance(std::istream_iterator<std::string>(s_line), std::istream_iterator<std::string>());
+    }
+
+    if (!length && !words && !count) {
+        // Print the byte count using the initial and final positions
+        std::cout << "   " << lineCount << "    " << wordCount << "   " << byteCount;
+    } else {
+        if (length)
+            std::cout << "   " << lineCount;
+        if (words)
+            std::cout << "   " << wordCount;
+        if (count)
+            std::cout << "   " << byteCount;
+    }
+
+    std::cout << "    " << filename << std::endl;
+}
+
 int main(int argc, char** argv) {
     auto options = getCLIArgs(argc, argv);
     std::vector<std::string> filenames = options.unmatched();
@@ -54,46 +79,13 @@ int main(int argc, char** argv) {
 
     if (filenames.empty()) {
         // read from stdin
-        std::string std_input;
-        std::stringstream ss;
-        while (getline(std::cin, std_input)) {
-            ss << std_input << std::endl;
-        }
-        processFile("stdin", length, words, count);
+        processStream(std::cin, "", length, words, count);
     } else {
         for (const auto& file : filenames) {
-            processFile(file, length, words, count);
+            std::stringstream ss = attachInput(file);
+            processStream(ss, file, length, words, count);
         }
     }
 
     return 0;
-}
-
-void processFile(const std::string& filename, bool length, bool words, bool count) {
-    std::stringstream ss = attachInput(filename);
-
-    std::string line, word;
-    unsigned long lineCount = 0;
-    unsigned long byteCount = 0;
-    unsigned long wordCount = 0;
-
-    while (std::getline(ss, line)) {
-        lineCount++;
-        byteCount += line.size();
-        std::stringstream s_line(line);
-        wordCount += std::distance(std::istream_iterator<std::string>(s_line), std::istream_iterator<std::string>());
-    }
-
-    if (!length && !words && !count) {
-        std::cout << "   " << lineCount << "    " << wordCount << "   " << std::filesystem::file_size(filename);
-    } else {
-        if (length)
-            std::cout << "   " << lineCount;
-        if (words)
-            std::cout << "   " << wordCount;
-        if (count)
-            std::cout << "   " << std::filesystem::file_size(filename);
-    }
-
-    std::cout << "    " << filename << std::endl;
 }
